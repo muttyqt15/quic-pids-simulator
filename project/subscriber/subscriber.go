@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	serverIP      = "127.0.0.1"
-	serverPort    = "54321"
+	serverIP      = "" // IP catch-all
+	serverPort    = "7101"
 	serverType    = "udp4"
 	appLayerProto = "lrt-jabodebek-2306207101"
 	bufferSize    = 2048
