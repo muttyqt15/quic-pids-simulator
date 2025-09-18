@@ -17,7 +17,7 @@ const (
 	serverPort        = "54321"
 	serverType        = "udp4"
 	bufferSize        = 2048
-	appLayerProto     = "jarkom-quic-sample-minjar"
+	appLayerProto     = "jarkom-quic-sample-muttaqin"
 	sslKeyLogFileName = "ssl-key.log"
 )
 
