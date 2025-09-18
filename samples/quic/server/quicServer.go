@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 
 	"github.com/quic-go/quic-go"
 	"jarkom.cs.ui.ac.id/h01/samples/quic/utils"
@@ -62,11 +63,19 @@ func main() {
 func handleConnection(connection quic.Connection) {
 	fmt.Printf("[quic] Receiving connection from %s\n", connection.RemoteAddr())
 
-	stream, err := connection.AcceptStream(context.Background())
-	if err != nil {
-		log.Fatalln(err)
+	var g sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		g.Add(1)
+		go func() {
+			defer g.Done()
+			stream, err := connection.AcceptStream(context.Background())
+			if err != nil {
+				log.Fatalln(err)
+			}
+			go handleStream(connection.RemoteAddr(), stream)
+		}()
 	}
-	go handleStream(connection.RemoteAddr(), stream)
+	g.Wait()
 }
 
 func handleStream(clientAddress net.Addr, stream quic.Stream) {

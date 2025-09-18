@@ -59,6 +59,7 @@ func main() {
 	for i := 0; i < 2; i++ { // mastiin ada 2 stream setiap koneksi
 		g.Add(1)
 		go func() {
+			defer g.Done()
 			// only 1 stream, but since in go routine multiple can run concurrently
 			stream, err := connection.OpenStreamSync(context.Background())
 			if err != nil {
