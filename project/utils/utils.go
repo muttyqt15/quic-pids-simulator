@@ -27,10 +27,12 @@ type LRTPIDSPacket struct {
 
 func Encoder(packet LRTPIDSPacket) []byte {
 	buffer := new(bytes.Buffer)
-	err := binary.Write(buffer, binary.BigEndian, packet)
+	err := binary.Write(buffer, binary.BigEndian, packet.LRTPIDSPacketFixed)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// perlu ditangani secara terpisah, cuz gabisa langsung diconvert kalau string (non-fixed size)
+	buffer.WriteString(packet.Destination)
 	return buffer.Bytes()
 }
 
