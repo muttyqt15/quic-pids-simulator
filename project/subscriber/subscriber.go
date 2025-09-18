@@ -42,7 +42,7 @@ func main() {
 	}
 	defer listener.Close()
 
-	fmt.Printf("[quic] Listening QUIC connections on %s\n", listener.Addr())
+	//fmt.Printf("[quic] Listening QUIC connections on %s\n", listener.Addr())
 
 	for {
 		conn, err := listener.Accept(context.Background())
@@ -55,7 +55,7 @@ func main() {
 }
 
 func handleConnection(conn quic.Connection) {
-	fmt.Printf("[quic] Connected from %s\n", conn.RemoteAddr())
+	//fmt.Printf("[quic] Connected from %s\n", conn.RemoteAddr())
 
 	for {
 		stream, err := conn.AcceptStream(context.Background())

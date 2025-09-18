@@ -1,4 +1,0 @@
-scp -i ./vm-test-muttaqin.pem go-source.zip ubuntu@52.73.42.39:/home/ubuntu
-
-SSLKEYLOGFILE
-C:\Users\hayay\Downloads\Misc\ssl-key.log

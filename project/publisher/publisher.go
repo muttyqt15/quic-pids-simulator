@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	serverIP      = "52.73.42.39" // IP Private VM1
+	serverIP      = "172.31.82.199" // IP Private VM2
 	serverPort    = "7101"
 	appLayerProto = "lrt-jabodebek-2306207101"
 )
