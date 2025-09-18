@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/quic-go/quic-go"
 )
@@ -54,26 +55,34 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	stream, err := connection.OpenStreamSync(context.Background())
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Printf("[quic] Opened bidirectional stream %d to %s\n", stream.StreamID(), connection.RemoteAddr())
+	var g sync.WaitGroup     // ensures they run
+	for i := 0; i < 2; i++ { // mastiin ada 2 stream setiap koneksi
+		g.Add(1)
+		go func() {
+			// only 1 stream, but since in go routine multiple can run concurrently
+			stream, err := connection.OpenStreamSync(context.Background())
+			if err != nil {
+				log.Fatalln(err)
+			}
+			fmt.Printf("[quic] Opened bidirectional stream %d to %s\n", stream.StreamID(), connection.RemoteAddr())
 
-	fmt.Printf("[quic] [Stream ID: %d] Sending message '%s'\n", stream.StreamID(), message)
-	_, err = stream.Write([]byte(message))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Printf("[quic] [Stream ID: %d] Message sent\n", stream.StreamID())
+			fmt.Printf("[quic] [Stream ID: %d] Sending message '%s'\n", stream.StreamID(), message)
+			_, err = stream.Write([]byte(message))
+			if err != nil {
+				log.Fatalln(err)
+			}
+			fmt.Printf("[quic] [Stream ID: %d] Message sent\n", stream.StreamID())
 
-	receiveLength, err := stream.Read(receiveBuffer)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Printf("[quic] [Stream ID: %d] Received %d bytes of message from server\n", stream.StreamID(), receiveLength)
+			receiveLength, err := stream.Read(receiveBuffer)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			fmt.Printf("[quic] [Stream ID: %d] Received %d bytes of message from server\n", stream.StreamID(), receiveLength)
 
-	response := receiveBuffer[:receiveLength]
-	fmt.Printf("[quic] [Stream ID: %d] Received message: '%s'\n", stream.StreamID(), response)
+			response := receiveBuffer[:receiveLength]
+			fmt.Printf("[quic] [Stream ID: %d] Received message: '%s'\n", stream.StreamID(), response)
+		}()
+	}
+	g.Wait()
 
 }
