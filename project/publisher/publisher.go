@@ -1,6 +1,5 @@
 package main
 
-// CLIENT QUIC [kendali stasiun]
 import (
 	"context"
 	"crypto/tls"
@@ -8,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"github.com/quic-go/quic-go"
 	"jarkom.cs.ui.ac.id/h01/project/utils"
@@ -16,40 +16,13 @@ import (
 const (
 	serverIP      = "127.0.0.1"
 	serverPort    = "54321"
-	bufferSize    = 2048
 	appLayerProto = "lrt-jabodebek-2306207101"
 )
-
-func sendPacket(connection quic.Connection, packet utils.LRTPIDSPacket) {
-	stream, err := connection.OpenStreamSync(context.Background())
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer stream.Close()
-
-	data := utils.Encoder(packet)
-
-	// Send packet
-	_, err = stream.Write(data)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Printf("[client] Sent packet (TransactionId: 0x%X, TrainNumber: %d)\n", packet.TransactionId, packet.TrainNumber)
-
-	// Receive ACK
-	receiveBuffer := make([]byte, bufferSize)
-	n, err := stream.Read(receiveBuffer)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	ackPacket := utils.Decoder(receiveBuffer[:n])
-	fmt.Printf("[client] Received ACK (TransactionId: 0x%X, IsAck: %v)\n", ackPacket.TransactionId, ackPacket.IsAck)
-}
 
 func main() {
 	sslKeyLogFile, err := os.Create("C:\\Users\\hayay\\Downloads\\Misc\\ssl-key.log")
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 	defer sslKeyLogFile.Close()
 
@@ -59,36 +32,68 @@ func main() {
 		KeyLogWriter:       sslKeyLogFile,
 	}
 
-	connection, err := quic.DialAddr(context.Background(), net.JoinHostPort(serverIP, serverPort), tlsConfig, &quic.Config{})
+	conn, err := quic.DialAddr(context.Background(), net.JoinHostPort(serverIP, serverPort), tlsConfig, nil)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
-	defer connection.CloseWithError(0x0, "No Error")
+	defer conn.CloseWithError(0, "bye")
 
 	destination := "Harjamukti"
-	packetTiba := utils.LRTPIDSPacket{
-		LRTPIDSPacketFixed: utils.LRTPIDSPacketFixed{
-			TransactionId:     0x55,
-			IsTrainArriving:   true,
-			TrainNumber:       42,
-			DestinationLength: uint8(len(destination)),
+
+	packets := []utils.LRTPIDSPacket{
+		{
+			LRTPIDSPacketFixed: utils.LRTPIDSPacketFixed{
+				TransactionId:     0x55,
+				IsTrainArriving:   true,
+				TrainNumber:       42,
+				DestinationLength: uint8(len(destination)),
+			},
+			Destination: destination,
 		},
-		Destination: destination,
+		{
+			LRTPIDSPacketFixed: utils.LRTPIDSPacketFixed{
+				TransactionId:     0x55,
+				IsTrainDeparting:  true,
+				TrainNumber:       42,
+				DestinationLength: uint8(len(destination)),
+			},
+			Destination: destination,
+		},
 	}
 
-	packetBerangkat := utils.LRTPIDSPacket{
-		LRTPIDSPacketFixed: utils.LRTPIDSPacketFixed{
-			TransactionId:     0x55,
-			IsTrainDeparting:  true,
-			TrainNumber:       42,
-			DestinationLength: uint8(len(destination)),
-		},
-		Destination: destination,
+	for _, pkt := range packets {
+		go sendPacket(conn, pkt)
 	}
 
-	// Send arrival packet
-	sendPacket(connection, packetTiba)
+	// Wait a little to allow goroutines to finish
+	time.Sleep(3 * time.Second)
+}
 
-	// Send departure packet
-	sendPacket(connection, packetBerangkat)
+func sendPacket(conn quic.Connection, pkt utils.LRTPIDSPacket) {
+	stream, err := conn.OpenStreamSync(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stream.Close()
+
+	packetBytes := utils.Encoder(pkt)
+
+	_, err = stream.Write(packetBytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("[client] Sent packet (TransactionId: 0x%x, TrainNumber: %d)\n", pkt.TransactionId, pkt.TrainNumber)
+
+	// wait for ACK
+	buffer := make([]byte, 1024)
+	n, err := stream.Read(buffer)
+	if err != nil {
+		log.Println("[client] read error:", err)
+		return
+	}
+
+	ack := utils.Decoder(buffer[:n])
+	if ack.IsAck {
+		fmt.Printf("[client] Received ACK for TransactionId: 0x%x\n", ack.TransactionId)
+	}
 }
