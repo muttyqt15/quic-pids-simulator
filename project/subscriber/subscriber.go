@@ -1,8 +1,8 @@
 package main
 
-// SERVER QUIC [layar PIDS]
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -15,127 +15,101 @@ import (
 )
 
 const (
-	serverIP          = "127.0.0.1"
-	serverPort        = "54321"
-	serverType        = "udp4"
-	bufferSize        = 2048
-	appLayerProto     = "lrt-jabodebek-2306207101"
-	sslKeyLogFileName = "C:\\Users\\hayay\\Downloads\\Misc\\ssl-key.log"
+	serverIP      = "127.0.0.1"
+	serverPort    = "54321"
+	serverType    = "udp4"
+	appLayerProto = "lrt-jabodebek-2306207101"
 )
 
+// Handler: process received packet and return message to display
 func Handler(packet utils.LRTPIDSPacket) string {
-	// Fungsi untuk menangani objek pesan harus ditempatkan di fungsi Handler pada
-	// subscriber.go. Fungsi ini hanya ditugaskan untuk menerima masukan berupa objek yang
-	// sudah di-decode dan mengembalikan pesan yang harus ditampikan sesuai konten informasi
-	// yang diterima.
-	return ""
+	if packet.IsTrainArriving {
+		return fmt.Sprintf("Mohon perhatian, kereta tujuan %s akan tiba di Peron 1.", packet.Destination)
+	}
+	if packet.IsTrainDeparting {
+		return fmt.Sprintf("Mohon perhatian, kereta tujuan %s akan diberangkatkan dari Peron 1.", packet.Destination)
+	}
+	return "Tidak ada pengumuman."
 }
 
 func main() {
-	//localUdpAddress, err := net.ResolveUDPAddr(serverType, net.JoinHostPort(serverIP, serverPort))
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	//socket, err := net.ListenUDP(serverType, localUdpAddress)
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	//
-	//defer func(socket *net.UDPConn) {
-	//	err := socket.Close()
-	//	if err != nil {
-	//		log.Fatalln(err)
-	//	}
-	//}(socket)
-	//
-	//fmt.Printf("QUIC Server Socket Program Example in Go\n")
-	//fmt.Printf("[%s] Preparing UDP listening socket on %s\n", serverType, socket.LocalAddr())
-	//
-	//tlsConfig := &tls.Config{
-	//	//Certificates: utils.GenerateTLSSelfSignedCertificates(), // self signed
-	//	NextProtos: []string{appLayerProto},
-	//}
-	//listener, err := quic.Listen(socket, tlsConfig, &quic.Config{})
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	//
-	//defer listener.Close()
-	//
-	//fmt.Printf("[quic] Listening QUIC connections on %s\n", listener.Addr())
-	//
-	//for {
-	//	connection, err := listener.Accept(context.Background())
-	//	if err != nil {
-	//		log.Fatalln(err)
-	//	}
-	//
-	//	go handleConnection(connection)
-	//}
-	fmt.Println(serverIP)
-	fmt.Println(serverPort)
-	fmt.Println(serverType)
-	fmt.Println(bufferSize)
-	fmt.Println(appLayerProto)
-	fmt.Println(sslKeyLogFileName)
-	destination := "Dukuh Atas"
-	packet := utils.LRTPIDSPacket{
-		LRTPIDSPacketFixed: utils.LRTPIDSPacketFixed{
-			TransactionId:     0x55,
-			IsAck:             false,
-			IsNewTrain:        false,
-			IsUpdateTrain:     false,
-			IsDeleteTrain:     false,
-			IsTrainArriving:   false,
-			IsTrainDeparting:  true,
-			TrainNumber:       1000,
-			DestinationLength: uint8(len(destination)),
-		},
-		Destination: destination,
-	}
-	result := utils.Encoder(packet)
-	fmt.Println(result)
-	fmt.Println(utils.Decoder(result))
-}
-
-func handleConnection(connection quic.Connection) {
-	fmt.Printf("[quic] Receiving connection from %s\n", connection.RemoteAddr())
-
-	var g sync.WaitGroup
-	for {
-		g.Add(1)
-		go func() {
-			defer g.Done()
-			stream, err := connection.AcceptStream(context.Background())
-			if err != nil {
-				log.Fatalln(err)
-			}
-			go handleStream(connection.RemoteAddr(), stream)
-		}()
-	}
-	g.Wait()
-}
-
-func handleStream(clientAddress net.Addr, stream quic.Stream) {
-	fmt.Printf("[quic] [Client: %s] Receive stream open request with ID %d\n", clientAddress, stream.StreamID())
-
-	_, err := io.Copy(logicProcessorAndWriter{stream}, stream)
+	localUdpAddress, err := net.ResolveUDPAddr(serverType, net.JoinHostPort(serverIP, serverPort))
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalln(err)
+	}
+
+	socket, err := net.ListenUDP(serverType, localUdpAddress)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer socket.Close()
+
+	fmt.Printf("QUIC Server Socket Program Example in Go\n")
+	fmt.Printf("[%s] Listening on %s\n", serverType, socket.LocalAddr())
+
+	tlsConfig := &tls.Config{
+		//Certificates: utils.GenerateTLSSelfSignedCertificates(),
+		NextProtos: []string{appLayerProto},
+	}
+
+	listener, err := quic.Listen(socket, tlsConfig, &quic.Config{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer listener.Close()
+
+	fmt.Printf("[quic] Listening QUIC connections on %s\n", listener.Addr())
+
+	for {
+		conn, err := listener.Accept(context.Background())
+		if err != nil {
+			log.Fatalln(err)
+		}
+		go handleConnection(conn)
 	}
 }
 
-type logicProcessorAndWriter struct{ io.Writer }
+func handleConnection(conn quic.Connection) {
+	fmt.Printf("[quic] New connection from %s\n", conn.RemoteAddr())
 
-func (lp logicProcessorAndWriter) Write(receivedMessageRaw []byte) (int, error) {
+	for {
+		stream, err := conn.AcceptStream(context.Background())
+		if err != nil {
+			log.Println("Connection closed:", err)
+			return
+		}
+		go handleStream(conn, stream)
+	}
+}
 
-	receivedMessage := string(receivedMessageRaw)
-	fmt.Printf("[quic] Receive message: %s\n", receivedMessage)
+func handleStream(conn quic.Connection, stream quic.Stream) {
+	defer stream.Close()
 
-	response := strings.ToUpper(receivedMessage)
-	writeLength, err := lp.Writer.Write([]byte(response))
+	raw := make([]byte, 0)
+	buf := make([]byte, 2048)
 
-	fmt.Printf("[quic] Send message: %s\n", response)
+	n, err := stream.Read(buf)
+	if err != nil && err != io.EOF {
+		log.Println("Error reading stream:", err)
+		return
+	}
+	raw = append(raw, buf[:n]...)
 
-	return writeLength, err
+	packet := utils.Decoder(raw)
+
+	// Process packet
+	msg := Handler(packet)
+	fmt.Println(msg)
+
+	// Send ACK back
+	ackPacket := packet
+	ackPacket.IsAck = true
+	ackPacket.TransactionId ^= 0xABCD
+	ackBytes := utils.Encoder(ackPacket)
+
+	_, err = stream.Write(ackBytes)
+	if err != nil {
+		log.Println("Error sending ACK:", err)
+		return
+	}
 }
