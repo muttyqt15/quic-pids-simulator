@@ -19,7 +19,7 @@ const (
 	serverType        = "udp4"
 	bufferSize        = 2048
 	appLayerProto     = "jarkom-quic-sample-muttaqin"
-	sslKeyLogFileName = "ssl-key.log"
+	sslKeyLogFileName = "C:\\Users\\hayay\\Downloads\\Misc\\ssl-key.log"
 )
 
 func main() {

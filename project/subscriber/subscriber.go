@@ -1,5 +1,6 @@
 package main
 
+// SERVER QUIC
 import (
 	"fmt"
 
@@ -11,8 +12,8 @@ const (
 	serverPort        = "54321"
 	serverType        = "udp4"
 	bufferSize        = 2048
-	appLayerProto     = "jarkom-quic-sample-minjar"
-	sslKeyLogFileName = "ssl-key.log"
+	appLayerProto     = "jarkom-quic-sample-muttaqin"
+	sslKeyLogFileName = "C:\\Users\\hayay\\Downloads\\Misc\\ssl-key.log"
 )
 
 func Handler(packet utils.LRTPIDSPacket) string {
