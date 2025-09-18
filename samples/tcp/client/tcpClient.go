@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	serverIP   = "127.0.0.1"
-	serverPort = "54321"
+	serverIP   = "52.73.42.39"
+	serverPort = "7101"
 	serverType = "tcp4"
 	bufferSize = 2048
 )
