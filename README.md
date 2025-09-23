@@ -43,7 +43,7 @@ This project provided valuable experience in several key areas of network progra
 1. Navigate to the project directory:
 
     ```bash
-    cd h01-source-code
+        cd quic-pids-simulator
     ```
 
 2. Run the subscriber:
